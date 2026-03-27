@@ -17,8 +17,9 @@ async function reply(chatId: number, text: string): Promise<void> {
 }
 
 async function handleMessage(chatId: number, text: string): Promise<void> {
-  const marketId = text.trim();
-  if (!/^\d+$/.test(marketId)) return;
+  const cleaned = text.replace(/@\S+\s*/, "").trim();
+  if (!/^\d+$/.test(cleaned)) return;
+  const marketId = cleaned;
 
   const market = await fetchMarket(marketId);
   if (!market) {
