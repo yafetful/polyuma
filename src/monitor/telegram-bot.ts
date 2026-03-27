@@ -1,10 +1,7 @@
-import dns from "node:dns";
+import https from "node:https";
 import { env } from "../config.js";
 import { fetchMarket } from "../polymarket/gamma-client.js";
 import { createLogger } from "../logger.js";
-
-// Force IPv4 DNS resolution to avoid ETIMEDOUT on Alpine containers
-dns.setDefaultResultOrder("ipv4first");
 
 const logger = createLogger("telegram-bot");
 
@@ -12,16 +9,36 @@ const BOT_TOKEN = env.TELEGRAM_BOT_TOKEN;
 const API = `https://api.telegram.org/bot${BOT_TOKEN}`;
 let offset = 0;
 
-async function reply(chatId: number, text: string): Promise<void> {
-  await fetch(`${API}/sendMessage`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ chat_id: chatId, text }),
+function tgRequest(url: string, body?: string): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const opts: https.RequestOptions = { family: 4 };
+    if (body) {
+      opts.method = "POST";
+      opts.headers = { "Content-Type": "application/json" };
+    }
+    const req = https.request(url, opts, (res) => {
+      let data = "";
+      res.on("data", (c) => (data += c));
+      res.on("end", () => resolve(data));
+    });
+    req.on("error", reject);
+    req.setTimeout(30000, () => {
+      req.destroy();
+      reject(new Error("timeout"));
+    });
+    if (body) req.write(body);
+    req.end();
   });
 }
 
+async function reply(chatId: number, text: string): Promise<void> {
+  await tgRequest(
+    `${API}/sendMessage`,
+    JSON.stringify({ chat_id: chatId, text })
+  );
+}
+
 async function handleMessage(chatId: number, text: string): Promise<void> {
-  // Only respond to messages that @mention the bot
   if (!/@umapoly_bot/i.test(text)) return;
 
   const cleaned = text.replace(/@\S+\s*/g, "").trim();
@@ -44,8 +61,8 @@ async function handleMessage(chatId: number, text: string): Promise<void> {
 
 async function poll(): Promise<void> {
   try {
-    const res = await fetch(`${API}/getUpdates?offset=${offset}&timeout=30`);
-    const data = await res.json() as { ok: boolean; result: Array<{ update_id: number; message?: { chat: { id: number }; text?: string } }> };
+    const raw = await tgRequest(`${API}/getUpdates?offset=${offset}&timeout=30`);
+    const data = JSON.parse(raw) as { ok: boolean; result: Array<{ update_id: number; message?: { chat: { id: number }; text?: string } }> };
     if (!data.ok) return;
 
     for (const update of data.result) {
