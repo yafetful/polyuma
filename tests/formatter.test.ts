@@ -16,6 +16,7 @@ describe("formatAlert", () => {
       marketSlug: "will-x-happen-by-2026",
       txHash: "0xabc123def456",
       expirationTime: 1711641600,
+      orderbook: { bestBid: "0.70", bestAsk: "0.74", bidDepth: 20, askDepth: 15, spread: "0.0400" },
     };
 
     const msg = formatAlert(data);
@@ -26,6 +27,8 @@ describe("formatAlert", () => {
     expect(msg).toContain("Will X happen by 2026?");
     expect(msg).toContain("0.72");
     expect(msg).toContain("polygonscan.com");
+    expect(msg).toContain("Bid 0.70 / Ask 0.74");
+    expect(msg).toContain("20 bids / 15 asks");
   });
 
   it("truncates address correctly", () => {
@@ -42,6 +45,7 @@ describe("formatAlert", () => {
       marketSlug: "test",
       txHash: "0xabc",
       expirationTime: null,
+      orderbook: null,
     };
 
     const msg = formatAlert(data);

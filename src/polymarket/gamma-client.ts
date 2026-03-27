@@ -14,6 +14,7 @@ export interface PolymarketMarket {
   endDate: string;
   outcomePrices: string;
   groupItemTitle?: string;
+  clobTokenIds?: string; // JSON array of token IDs, e.g. '["tokenId1","tokenId2"]'
 }
 
 export async function fetchMarket(

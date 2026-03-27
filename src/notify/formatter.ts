@@ -1,3 +1,5 @@
+import type { OrderbookSummary } from "../polymarket/clob-client.js";
+
 export interface AlertData {
   disputer: string;
   winRate: number;
@@ -11,6 +13,7 @@ export interface AlertData {
   marketSlug: string;
   txHash: string;
   expirationTime: number | null;
+  orderbook: OrderbookSummary | null;
 }
 
 function truncateAddress(addr: string): string {
@@ -38,7 +41,7 @@ export function formatAlert(data: AlertData): string {
     ? new Date(data.expirationTime * 1000).toISOString().replace("T", " ").slice(0, 19) + " UTC"
     : "unknown";
 
-  return [
+  const lines = [
     `High Win-Rate Disputer Alert`,
     ``,
     `Disputer: ${truncateAddress(data.disputer)}`,
@@ -49,10 +52,21 @@ export function formatAlert(data: AlertData): string {
     `  Title: ${data.marketTitle}`,
     `  Price: Yes ${data.yesPrice} / No ${data.noPrice}`,
     `  Volume: ${formatVolume(data.volume)}`,
+  ];
+
+  if (data.orderbook) {
+    const ob = data.orderbook;
+    lines.push(`  Orderbook: Bid ${ob.bestBid ?? "-"} / Ask ${ob.bestAsk ?? "-"} (spread: ${ob.spread ?? "-"})`);
+    lines.push(`  Depth: ${ob.bidDepth} bids / ${ob.askDepth} asks`);
+  }
+
+  lines.push(
     `  Link: https://polymarket.com/event/${data.marketSlug}`,
     ``,
     `UMA Event:`,
     `  Tx: https://polygonscan.com/tx/${data.txHash}`,
     `  Challenge Expires: ${expiry}`,
-  ].join("\n");
+  );
+
+  return lines.join("\n");
 }

@@ -15,6 +15,7 @@ import {
   extractMarketId,
 } from "../polymarket/ancillary-decoder.js";
 import { fetchMarket } from "../polymarket/gamma-client.js";
+import { fetchOrderbook, type OrderbookSummary } from "../polymarket/clob-client.js";
 import { formatAlert, type AlertData } from "../notify/formatter.js";
 import { sendAlert } from "../notify/client.js";
 import { createLogger } from "../logger.js";
@@ -74,6 +75,7 @@ async function handleDisputePrice(event: ParsedDisputePrice, log: ethers.Log): P
   let noPrice = "?";
   let volume = "0";
   let slug = "";
+  let orderbook: OrderbookSummary | null = null;
 
   if (marketId) {
     const market = await fetchMarket(marketId);
@@ -86,6 +88,16 @@ async function handleDisputePrice(event: ParsedDisputePrice, log: ethers.Log): P
         yesPrice = String(prices[0] ?? "?");
         noPrice = String(prices[1] ?? "?");
       } catch { /* ignore */ }
+
+      // Fetch orderbook using first token ID
+      if (market.clobTokenIds) {
+        try {
+          const tokenIds = JSON.parse(market.clobTokenIds);
+          if (tokenIds.length > 0) {
+            orderbook = await fetchOrderbook(tokenIds[0]);
+          }
+        } catch { /* ignore */ }
+      }
     }
   }
 
@@ -102,6 +114,7 @@ async function handleDisputePrice(event: ParsedDisputePrice, log: ethers.Log): P
     marketSlug: slug,
     txHash: log.transactionHash,
     expirationTime: null,
+    orderbook,
   };
 
   const message = formatAlert(alertData);
