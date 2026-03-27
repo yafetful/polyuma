@@ -1,0 +1,21 @@
+services:
+  polyuma:
+    build: .
+    restart: unless-stopped
+    env_file: .env
+    volumes:
+      - polyuma-data:/data
+    depends_on:
+      xxnotify:
+        condition: service_started
+
+  xxnotify:
+    build:
+      context: ../xxnotify
+    restart: unless-stopped
+    env_file: ../xxnotify/.env
+    ports:
+      - "8080:8080"
+
+volumes:
+  polyuma-data:
