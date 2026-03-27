@@ -9,7 +9,7 @@ import {
   type ParsedSettle,
 } from "./event-parser.js";
 import { checkDispute } from "../analysis/matcher.js";
-import { rebuildAllProfiles } from "../analysis/profile-builder.js";
+import { updateSingleProfile } from "../analysis/profile-builder.js";
 import {
   decodeAncillaryData,
   extractMarketId,
@@ -152,7 +152,10 @@ async function handleSettle(event: ParsedSettle, log: ethers.Log): Promise<void>
     id
   );
 
-  rebuildAllProfiles();
+  // Incrementally update only the affected disputer's profile
+  if (event.disputer && event.disputer !== "0x0000000000000000000000000000000000000000") {
+    updateSingleProfile(event.disputer);
+  }
 }
 
 async function subscribe(): Promise<void> {

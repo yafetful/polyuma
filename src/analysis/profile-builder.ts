@@ -130,3 +130,76 @@ export function rebuildAllProfiles(): void {
     "profiles rebuilt"
   );
 }
+
+export function updateSingleProfile(disputerAddress: string): void {
+  const addr = disputerAddress.toLowerCase();
+
+  const rows = db
+    .prepare(
+      `SELECT proposed_price, settlement_price, payout, dispute_timestamp
+       FROM oracle_requests
+       WHERE disputer = ?`
+    )
+    .all(addr) as Array<{
+    proposed_price: string;
+    settlement_price: string | null;
+    payout: string | null;
+    dispute_timestamp: number;
+  }>;
+
+  if (rows.length === 0) return;
+
+  let wins = 0;
+  let losses = 0;
+  let totalPayout = 0n;
+  let firstSeen = rows[0].dispute_timestamp;
+  let lastSeen = rows[0].dispute_timestamp;
+
+  for (const row of rows) {
+    const outcome = computeDisputeOutcome(row.settlement_price, row.proposed_price);
+    if (outcome === "win") wins++;
+    if (outcome === "loss") losses++;
+    if (row.payout) {
+      try { totalPayout += BigInt(row.payout); } catch { /* ignore */ }
+    }
+    if (row.dispute_timestamp < firstSeen) firstSeen = row.dispute_timestamp;
+    if (row.dispute_timestamp > lastSeen) lastSeen = row.dispute_timestamp;
+  }
+
+  const total = rows.length;
+  const winRate = total > 0 ? wins / total : 0;
+  const isWatched = winRate >= env.MIN_WIN_RATE && total >= env.MIN_DISPUTES ? 1 : 0;
+
+  db.prepare(`
+    INSERT INTO disputer_profiles (
+      address, total_disputes, wins, losses, win_rate,
+      total_payout, first_seen, last_seen, is_watched, updated_at
+    ) VALUES (
+      @address, @totalDisputes, @wins, @losses, @winRate,
+      @totalPayout, datetime(@firstSeen, 'unixepoch'),
+      datetime(@lastSeen, 'unixepoch'), @isWatched, datetime('now')
+    )
+    ON CONFLICT(address) DO UPDATE SET
+      total_disputes = @totalDisputes,
+      wins = @wins,
+      losses = @losses,
+      win_rate = @winRate,
+      total_payout = @totalPayout,
+      first_seen = datetime(@firstSeen, 'unixepoch'),
+      last_seen = datetime(@lastSeen, 'unixepoch'),
+      is_watched = @isWatched,
+      updated_at = datetime('now')
+  `).run({
+    address: addr,
+    totalDisputes: total,
+    wins,
+    losses,
+    winRate,
+    totalPayout: totalPayout.toString(),
+    firstSeen,
+    lastSeen,
+    isWatched,
+  });
+
+  logger.info({ disputer: addr, winRate, total, isWatched: !!isWatched }, "profile updated");
+}
