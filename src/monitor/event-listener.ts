@@ -80,6 +80,10 @@ async function handleDisputePrice(event: ParsedDisputePrice, log: ethers.Log): P
   if (marketId) {
     const market = await fetchMarket(marketId);
     if (market) {
+      if (!market.active) {
+        logger.info({ marketId, question: market.question }, "market not active, skipping alert");
+        return;
+      }
       marketTitle = market.question;
       slug = market.slug;
       volume = market.volume;
