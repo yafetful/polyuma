@@ -3,7 +3,6 @@ import { z } from "zod";
 const envSchema = z.object({
   POLYGON_RPC_WS: z.string().url(),
   POLYGON_RPC_HTTP: z.string().url(),
-  ETHEREUM_RPC_HTTP: z.string().url(),
   MIN_WIN_RATE: z.coerce.number().min(0).max(1).default(0.6),
   MIN_DISPUTES: z.coerce.number().int().min(1).default(3),
   SYNC_INTERVAL_MINUTES: z.coerce.number().int().min(1).default(60),

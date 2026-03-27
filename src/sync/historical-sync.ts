@@ -5,28 +5,34 @@ import { createLogger } from "../logger.js";
 
 const logger = createLogger("historical-sync");
 
-const upsertStmt = db.prepare(`
-  INSERT INTO oracle_requests (
-    id, requester, identifier, timestamp, ancillary_data,
-    proposer, proposed_price, currency,
-    disputer, dispute_timestamp,
-    settlement_price, settled_timestamp,
-    state, market_id, updated_at
-  ) VALUES (
-    @id, @requester, @identifier, @timestamp, @ancillaryData,
-    @proposer, @proposedPrice, @currency,
-    @disputer, @disputeTimestamp,
-    @settlementPrice, @settledTimestamp,
-    @state, @marketId, datetime('now')
-  )
-  ON CONFLICT(id) DO UPDATE SET
-    disputer = @disputer,
-    dispute_timestamp = @disputeTimestamp,
-    settlement_price = @settlementPrice,
-    settled_timestamp = @settledTimestamp,
-    state = @state,
-    updated_at = datetime('now')
-`);
+let upsertStmt: ReturnType<typeof db.prepare> | undefined;
+function getUpsertStmt() {
+  if (!upsertStmt) {
+    upsertStmt = db.prepare(`
+      INSERT INTO oracle_requests (
+        id, requester, identifier, timestamp, ancillary_data,
+        proposer, proposed_price, currency,
+        disputer, dispute_timestamp,
+        settlement_price, settled_timestamp,
+        state, market_id, updated_at
+      ) VALUES (
+        @id, @requester, @identifier, @timestamp, @ancillaryData,
+        @proposer, @proposedPrice, @currency,
+        @disputer, @disputeTimestamp,
+        @settlementPrice, @settledTimestamp,
+        @state, @marketId, datetime('now')
+      )
+      ON CONFLICT(id) DO UPDATE SET
+        disputer = @disputer,
+        dispute_timestamp = @disputeTimestamp,
+        settlement_price = @settlementPrice,
+        settled_timestamp = @settledTimestamp,
+        state = @state,
+        updated_at = datetime('now')
+    `);
+  }
+  return upsertStmt;
+}
 
 function toRow(req: SubgraphOracleRequest) {
   let marketId: string | null = null;
@@ -41,7 +47,7 @@ function toRow(req: SubgraphOracleRequest) {
     id: req.id,
     requester: req.requester.toLowerCase(),
     identifier: req.identifier,
-    timestamp: parseInt(req.timestamp, 10),
+    timestamp: parseInt(req.requestTimestamp, 10),
     ancillaryData: req.ancillaryData,
     proposer: req.proposer?.toLowerCase() ?? null,
     proposedPrice: req.proposedPrice,
@@ -77,7 +83,7 @@ export async function runHistoricalSync(): Promise<number> {
 
   const insertMany = db.transaction((rows: SubgraphOracleRequest[]) => {
     for (const req of rows) {
-      upsertStmt.run(toRow(req));
+      getUpsertStmt().run(toRow(req));
     }
   });
 

@@ -6,7 +6,6 @@ export default defineConfig({
     env: {
       POLYGON_RPC_WS: "wss://test",
       POLYGON_RPC_HTTP: "https://test",
-      ETHEREUM_RPC_HTTP: "https://test",
       DB_PATH: ":memory:",
     },
   },

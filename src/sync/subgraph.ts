@@ -6,7 +6,7 @@ const logger = createLogger("subgraph");
 export interface SubgraphOracleRequest {
   id: string;
   identifier: string;
-  timestamp: string;
+  requestTimestamp: string;
   ancillaryData: string;
   requester: string;
   proposer: string;
@@ -35,17 +35,17 @@ export async function fetchDisputedRequests(
     optimisticPriceRequests(
       first: ${first},
       skip: ${skip},
-      orderBy: timestamp,
+      orderBy: requestTimestamp,
       orderDirection: asc,
       where: {
         requester_in: ${JSON.stringify([...UMA_ADAPTERS])},
         disputer_not: null,
-        timestamp_gt: "${timestampGt}"
+        requestTimestamp_gt: "${timestampGt}"
       }
     ) {
       id
       identifier
-      timestamp
+      requestTimestamp
       ancillaryData
       requester
       proposer
@@ -93,7 +93,7 @@ export async function fetchAllDisputedRequests(
     const batch = await fetchDisputedRequests(0, pageSize, cursor);
     all.push(...batch);
     if (batch.length < pageSize) break;
-    cursor = parseInt(batch[batch.length - 1].timestamp, 10);
+    cursor = parseInt(batch[batch.length - 1].requestTimestamp, 10);
   }
 
   logger.info({ total: all.length }, "fetched all disputed requests");
