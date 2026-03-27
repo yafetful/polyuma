@@ -1,3 +1,5 @@
+import { Agent } from "node:http";
+import { Agent as HttpsAgent } from "node:https";
 import { env } from "../config.js";
 import { fetchMarket } from "../polymarket/gamma-client.js";
 import { createLogger } from "../logger.js";
@@ -8,8 +10,16 @@ const BOT_TOKEN = env.TELEGRAM_BOT_TOKEN;
 const API = `https://api.telegram.org/bot${BOT_TOKEN}`;
 let offset = 0;
 
+// Force IPv4 to avoid ETIMEDOUT on Alpine containers
+const agent = new HttpsAgent({ family: 4 });
+
+async function tgFetch(url: string, init?: RequestInit): Promise<Response> {
+  // @ts-expect-error node fetch supports dispatcher/agent
+  return fetch(url, { ...init, dispatcher: agent });
+}
+
 async function reply(chatId: number, text: string): Promise<void> {
-  await fetch(`${API}/sendMessage`, {
+  await tgFetch(`${API}/sendMessage`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ chat_id: chatId, text }),
@@ -17,7 +27,10 @@ async function reply(chatId: number, text: string): Promise<void> {
 }
 
 async function handleMessage(chatId: number, text: string): Promise<void> {
-  const cleaned = text.replace(/@\S+\s*/, "").trim();
+  // Only respond to messages that @mention the bot
+  if (!/@umapoly_bot/i.test(text)) return;
+
+  const cleaned = text.replace(/@\S+\s*/g, "").trim();
   if (!/^\d+$/.test(cleaned)) return;
   const marketId = cleaned;
 
@@ -37,7 +50,7 @@ async function handleMessage(chatId: number, text: string): Promise<void> {
 
 async function poll(): Promise<void> {
   try {
-    const res = await fetch(`${API}/getUpdates?offset=${offset}&timeout=30`);
+    const res = await tgFetch(`${API}/getUpdates?offset=${offset}&timeout=30`);
     const data = await res.json() as { ok: boolean; result: Array<{ update_id: number; message?: { chat: { id: number }; text?: string } }> };
     if (!data.ok) return;
 
@@ -50,6 +63,8 @@ async function poll(): Promise<void> {
     }
   } catch (err) {
     logger.error({ err }, "telegram poll error");
+    // Wait before retrying on error
+    await new Promise((r) => setTimeout(r, 5000));
   }
 }
 
@@ -59,7 +74,6 @@ export async function startTelegramBot(): Promise<void> {
     return;
   }
   logger.info("telegram bot started");
-  // eslint-disable-next-line no-constant-condition
   while (true) {
     await poll();
   }
