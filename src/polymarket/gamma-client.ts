@@ -1,21 +1,24 @@
+import { z } from "zod";
 import { GAMMA_API_URL } from "../config.js";
 import { db } from "../db/client.js";
 import { createLogger } from "../logger.js";
 
 const logger = createLogger("gamma-client");
 
-export interface PolymarketMarket {
-  id: string;
-  question: string;
-  slug: string;
-  active: boolean;
-  closed: boolean;
-  volume: string;
-  endDate: string;
-  outcomePrices: string;
-  groupItemTitle?: string;
-  clobTokenIds?: string; // JSON array of token IDs, e.g. '["tokenId1","tokenId2"]'
-}
+const marketSchema = z.object({
+  id: z.string(),
+  question: z.string(),
+  slug: z.string(),
+  active: z.boolean(),
+  closed: z.boolean(),
+  volume: z.string(),
+  endDate: z.string(),
+  outcomePrices: z.string(),
+  groupItemTitle: z.string().optional(),
+  clobTokenIds: z.string().optional(),
+}).passthrough();
+
+export type PolymarketMarket = z.infer<typeof marketSchema>;
 
 export async function fetchMarket(
   marketId: string
@@ -26,7 +29,8 @@ export async function fetchMarket(
       logger.warn({ marketId, status: response.status }, "market fetch failed");
       return null;
     }
-    const market: PolymarketMarket = await response.json();
+    const raw = await response.json();
+    const market = marketSchema.parse(raw);
 
     const prices = parseOutcomePrices(market.outcomePrices);
     db.prepare(

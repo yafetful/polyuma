@@ -1,7 +1,18 @@
+import { z } from "zod";
 import { CLOB_API_URL } from "../config.js";
 import { createLogger } from "../logger.js";
 
 const logger = createLogger("clob-client");
+
+const orderEntrySchema = z.object({
+  price: z.string(),
+  size: z.string(),
+});
+
+const orderbookSchema = z.object({
+  bids: z.array(orderEntrySchema).optional().default([]),
+  asks: z.array(orderEntrySchema).optional().default([]),
+}).passthrough();
 
 export interface OrderbookSummary {
   bestBid: string | null;
@@ -22,10 +33,11 @@ export async function fetchOrderbook(
       logger.warn({ tokenId, status: response.status }, "orderbook fetch failed");
       return null;
     }
-    const data = await response.json();
+    const raw = await response.json();
+    const data = orderbookSchema.parse(raw);
 
-    const bids = data.bids ?? [];
-    const asks = data.asks ?? [];
+    const bids = data.bids;
+    const asks = data.asks;
 
     return {
       bestBid: bids.length > 0 ? bids[0].price : null,
