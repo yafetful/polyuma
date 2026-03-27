@@ -61,7 +61,7 @@ export function formatAlert(data: AlertData): string {
   }
 
   lines.push(
-    `  Link: https://polymarket.com/event/${data.marketSlug}`,
+    `  Link: https://polymarket.com/market/${data.marketSlug}`,
     ``,
     `UMA Event:`,
     `  Tx: https://polygonscan.com/tx/${data.txHash}`,
