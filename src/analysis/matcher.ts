@@ -1,7 +1,7 @@
 import { db } from "../db/client.js";
-import pino from "pino";
+import { createLogger } from "../logger.js";
 
-const logger = pino({ name: "matcher" });
+const logger = createLogger("matcher");
 
 export interface DisputerProfile {
   address: string;

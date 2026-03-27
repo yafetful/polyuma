@@ -1,8 +1,8 @@
 import { GAMMA_API_URL } from "../config.js";
 import { db } from "../db/client.js";
-import pino from "pino";
+import { createLogger } from "../logger.js";
 
-const logger = pino({ name: "gamma-client" });
+const logger = createLogger("gamma-client");
 
 export interface PolymarketMarket {
   id: string;

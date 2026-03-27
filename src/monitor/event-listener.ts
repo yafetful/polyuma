@@ -17,9 +17,9 @@ import {
 import { fetchMarket } from "../polymarket/gamma-client.js";
 import { formatAlert, type AlertData } from "../notify/formatter.js";
 import { sendAlert } from "../notify/client.js";
-import pino from "pino";
+import { createLogger } from "../logger.js";
 
-const logger = pino({ name: "event-listener" });
+const logger = createLogger("event-listener");
 
 let provider: ethers.WebSocketProvider | null = null;
 let reconnectDelay = 1000;
@@ -123,6 +123,7 @@ async function handleSettle(event: ParsedSettle, log: ethers.Log): Promise<void>
     "new Settle event"
   );
 
+  const id = `${event.requester}-${event.identifier}-${event.timestamp.toString()}`;
   db.prepare(
     `UPDATE oracle_requests SET
        settlement_price = ?,
@@ -130,14 +131,12 @@ async function handleSettle(event: ParsedSettle, log: ethers.Log): Promise<void>
        payout = ?,
        state = 'Settled',
        updated_at = datetime('now')
-     WHERE requester = ? AND identifier = ? AND timestamp = ?`
+     WHERE id = ?`
   ).run(
     event.price.toString(),
     Math.floor(Date.now() / 1000),
     event.payout.toString(),
-    event.requester,
-    event.identifier,
-    Number(event.timestamp)
+    id
   );
 
   rebuildAllProfiles();

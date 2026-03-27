@@ -1,13 +1,13 @@
-import pino from "pino";
 import cron from "node-cron";
 import { env } from "./config.js";
+import { createLogger } from "./logger.js";
 import { initSchema } from "./db/schema.js";
 import { runHistoricalSync } from "./sync/historical-sync.js";
 import { rebuildAllProfiles } from "./analysis/profile-builder.js";
 import { startEventListener } from "./monitor/event-listener.js";
 import { db } from "./db/client.js";
 
-const logger = pino({ name: "polyuma" });
+const logger = createLogger("polyuma");
 
 async function main(): Promise<void> {
   logger.info("polyuma starting");

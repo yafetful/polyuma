@@ -1,8 +1,8 @@
 import { env } from "../config.js";
 import { db } from "../db/client.js";
-import pino from "pino";
+import { createLogger } from "../logger.js";
 
-const logger = pino({ name: "notify-client" });
+const logger = createLogger("notify-client");
 
 export async function sendAlert(
   title: string,

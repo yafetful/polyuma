@@ -1,8 +1,8 @@
 import { db } from "../db/client.js";
 import { env } from "../config.js";
-import pino from "pino";
+import { createLogger } from "../logger.js";
 
-const logger = pino({ name: "profile-builder" });
+const logger = createLogger("profile-builder");
 
 export type DisputeOutcome = "win" | "loss" | "pending";
 

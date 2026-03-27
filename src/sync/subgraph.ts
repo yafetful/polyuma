@@ -1,7 +1,7 @@
 import { SUBGRAPH_URL, UMA_ADAPTERS } from "../config.js";
-import pino from "pino";
+import { createLogger } from "../logger.js";
 
-const logger = pino({ name: "subgraph" });
+const logger = createLogger("subgraph");
 
 export interface SubgraphOracleRequest {
   id: string;
@@ -84,14 +84,16 @@ export async function fetchAllDisputedRequests(
   timestampGt: number = 0
 ): Promise<SubgraphOracleRequest[]> {
   const all: SubgraphOracleRequest[] = [];
-  let skip = 0;
+  let cursor = timestampGt;
   const pageSize = 1000;
 
+  // Use cursor-based pagination (timestamp_gt) instead of skip
+  // to avoid The Graph's 5000 skip limit
   while (true) {
-    const batch = await fetchDisputedRequests(skip, pageSize, timestampGt);
+    const batch = await fetchDisputedRequests(0, pageSize, cursor);
     all.push(...batch);
     if (batch.length < pageSize) break;
-    skip += pageSize;
+    cursor = parseInt(batch[batch.length - 1].timestamp, 10);
   }
 
   logger.info({ total: all.length }, "fetched all disputed requests");

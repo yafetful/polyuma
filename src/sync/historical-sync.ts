@@ -1,9 +1,9 @@
 import { db } from "../db/client.js";
 import { fetchAllDisputedRequests, type SubgraphOracleRequest } from "./subgraph.js";
 import { extractMarketId, decodeAncillaryData } from "../polymarket/ancillary-decoder.js";
-import pino from "pino";
+import { createLogger } from "../logger.js";
 
-const logger = pino({ name: "historical-sync" });
+const logger = createLogger("historical-sync");
 
 const upsertStmt = db.prepare(`
   INSERT INTO oracle_requests (
@@ -64,7 +64,8 @@ export async function runHistoricalSync(): Promise<number> {
     .prepare("SELECT MAX(timestamp) as ts FROM oracle_requests")
     .get() as { ts: number | null };
 
-  const timestampGt = latest?.ts ?? 0;
+  // Use ts-1 to re-fetch records sharing the max timestamp (UPSERT is idempotent)
+  const timestampGt = latest?.ts ? latest.ts - 1 : 0;
   logger.info({ timestampGt }, "starting historical sync");
 
   const requests = await fetchAllDisputedRequests(timestampGt);

@@ -1,7 +1,7 @@
 import { CLOB_API_URL } from "../config.js";
-import pino from "pino";
+import { createLogger } from "../logger.js";
 
-const logger = pino({ name: "clob-client" });
+const logger = createLogger("clob-client");
 
 export interface OrderbookSummary {
   bestBid: string | null;
