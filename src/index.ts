@@ -5,6 +5,7 @@ import { initSchema } from "./db/schema.js";
 import { runHistoricalSync } from "./sync/historical-sync.js";
 import { rebuildAllProfiles } from "./analysis/profile-builder.js";
 import { startEventListener } from "./monitor/event-listener.js";
+import { startTelegramBot } from "./monitor/telegram-bot.js";
 import { db } from "./db/client.js";
 
 const logger = createLogger("polyuma");
@@ -49,6 +50,9 @@ async function main(): Promise<void> {
     }
   });
   logger.info({ intervalMinutes: env.SYNC_INTERVAL_MINUTES }, "incremental sync scheduled");
+
+  // Start Telegram bot (non-blocking)
+  startTelegramBot();
 
   logger.info("polyuma fully operational");
 }
