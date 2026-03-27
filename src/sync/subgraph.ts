@@ -1,0 +1,99 @@
+import { SUBGRAPH_URL, UMA_ADAPTERS } from "../config.js";
+import pino from "pino";
+
+const logger = pino({ name: "subgraph" });
+
+export interface SubgraphOracleRequest {
+  id: string;
+  identifier: string;
+  timestamp: string;
+  ancillaryData: string;
+  requester: string;
+  proposer: string;
+  proposedPrice: string;
+  disputer: string | null;
+  disputeTimestamp: string | null;
+  state: string;
+  settlementPrice: string | null;
+  settlementTimestamp: string | null;
+  currency: string;
+}
+
+interface SubgraphResponse {
+  data?: {
+    optimisticPriceRequests: SubgraphOracleRequest[];
+  };
+  errors?: Array<{ message: string }>;
+}
+
+export async function fetchDisputedRequests(
+  skip: number = 0,
+  first: number = 1000,
+  timestampGt: number = 0
+): Promise<SubgraphOracleRequest[]> {
+  const query = `{
+    optimisticPriceRequests(
+      first: ${first},
+      skip: ${skip},
+      orderBy: timestamp,
+      orderDirection: asc,
+      where: {
+        requester_in: ${JSON.stringify([...UMA_ADAPTERS])},
+        disputer_not: null,
+        timestamp_gt: "${timestampGt}"
+      }
+    ) {
+      id
+      identifier
+      timestamp
+      ancillaryData
+      requester
+      proposer
+      proposedPrice
+      disputer
+      disputeTimestamp
+      state
+      settlementPrice
+      settlementTimestamp
+      currency
+    }
+  }`;
+
+  const response = await fetch(SUBGRAPH_URL, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ query }),
+  });
+
+  if (!response.ok) {
+    throw new Error(`Subgraph request failed: ${response.status}`);
+  }
+
+  const json: SubgraphResponse = await response.json();
+
+  if (json.errors?.length) {
+    throw new Error(`Subgraph errors: ${json.errors[0].message}`);
+  }
+
+  const results = json.data?.optimisticPriceRequests ?? [];
+  logger.info({ count: results.length, skip, timestampGt }, "fetched from subgraph");
+  return results;
+}
+
+export async function fetchAllDisputedRequests(
+  timestampGt: number = 0
+): Promise<SubgraphOracleRequest[]> {
+  const all: SubgraphOracleRequest[] = [];
+  let skip = 0;
+  const pageSize = 1000;
+
+  while (true) {
+    const batch = await fetchDisputedRequests(skip, pageSize, timestampGt);
+    all.push(...batch);
+    if (batch.length < pageSize) break;
+    skip += pageSize;
+  }
+
+  logger.info({ total: all.length }, "fetched all disputed requests");
+  return all;
+}
